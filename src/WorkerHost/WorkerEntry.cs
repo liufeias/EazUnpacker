@@ -1,4 +1,3 @@
-using System.Reflection;
 using EazFixer;
 using EazyDevirt;
 using Newtonsoft.Json;
@@ -19,10 +18,11 @@ internal static class WorkerEntry
         Console.OutputEncoding=System.Text.Encoding.UTF8;
         try
         {
+            WorkCache.Initialize();
             switch(args[0])
             {
                 case "pipeline": return RecoveryPipeline.Run(args);
-                case "--validate-worker": return ClrValidator.Run(args[1],args[2],args[3],args.Length>4?int.Parse(args[4]):5);
+                case "--validate-worker": return ClrValidator.Run(args[1],args[2],args[3],args.Length>4?int.Parse(args[4]):5,args.Length>5?args[5]:null);
                 case "--vm-worker":
                     ProgressEvents.Send(3,"info","加载 VM 还原后端");
                     var vmProgress=new ProgressEvents.Counter(3);
@@ -42,19 +42,8 @@ internal static class WorkerEntry
                 case "--names-worker": NameRecoveryPass.Process(args[1],args[2],args[3]);return 0;
                 case "--map-worker": RebuiltValidation.MapMethods(args[1],args[2],args[3],args[4]);return 0;
                 case "--flow-worker": ControlFlowCleanupPass.Process(args[1],args[2],args[3]);return 0;
-                case "--self-test": return SelfTests.Run();
-                case "--desktop-probe": Console.WriteLine("Desktop: "+WorkerDesktop.CurrentName);return 0;
-                case "--test-sleep": System.Threading.Thread.Sleep(30000);return 0;
-                case "--test-progress":
-                    Console.WriteLine("raw fixture stdout");Console.Error.WriteLine("raw fixture stderr");
-                    Console.WriteLine(ProgressEvents.Prefix+"{malformed}");
-                    ProgressEvents.Send(3,"progress","实时测试：开始",0,2);
-                    System.Threading.Thread.Sleep(1400);
-                    ProgressEvents.Send(3,"progress","实时测试：结束",2,2);return 0;
-                case "--test-progress-relay": return ProcessRunner.Run(Assembly.GetExecutingAssembly().Location,new[]{"--test-progress"},args[1],10);
-                case "--test-sleep-tree":
-                    using(var child=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Assembly.GetExecutingAssembly().Location,"--test-sleep"){UseShellExecute=false,CreateNoWindow=true}))
-                    {Console.WriteLine("Fixture child: "+child!.Id);Console.Out.Flush();System.Threading.Thread.Sleep(30000);}return 0;
+                case "--publish-symbols": PortablePdbCompatibility.PublishSidecar(args[1],args[2]);return 0;
+                case "--repair-symbols": PortablePdbCompatibility.Normalize(args[1],args[2]);PortablePdbCompatibility.PublishSidecar(args[1],args[2]);return 0;
                 default: throw new ArgumentException("Unknown worker operation.");
             }
         }
